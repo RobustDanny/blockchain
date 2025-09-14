@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Blockchain Wallet</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Chakra UI CDN -->
+    <link
+      href="https://unpkg.com/@chakra-ui/react@2.8.2/dist/chakra-ui.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      /* CSS анимации */
+      @keyframes slideIn {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes scaleIn {
+        from {
+          transform: scale(0.8);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .sidebar {
+        animation: slideIn 0.3s ease-out;
+      }
+      .card {
+        animation: fadeIn 0.3s ease-out;
+      }
+      .modal {
+        animation: scaleIn 0.2s ease-out;
+      }
+      .button-hover:hover {
+        transform: scale(1.05);
+        transition: transform 0.2s;
+      }
+      .button-hover:active {
+        transform: scale(0.95);
+      }
+      /* SVG иконки стили */
+      .icon {
+        width: 1.5em;
+        height: 1.5em;
+        margin-right: 8px;
+        fill: currentColor;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      // SVG иконки
+      const WalletIcon = () => (
+        <svg className="icon" viewBox="0 0 24 24">
+          <path d="M21 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-1 10h-4v-2h4v2zm0-4h-6V9h6v2z" />
+        </svg>
+      );
+
+      const ExchangeIcon = () => (
+        <svg className="icon" viewBox="0 0 24 24">
+          <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3.7 10.3a1 1 0 0 1-1.4 1.4L12 11.4l-2.3 2.3a1 1 0 0 1-1.4-1.4l3-3a1 1 0 0 1 1.4 0l3 3z" />
+        </svg>
+      );
+
+      const CheckCircleIcon = () => (
+        <svg className="icon" viewBox="0 0 24 24">
+          <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 15l-5-5 1.4-1.4L10 14.2l7.6-7.6L19 8l-9 9z" />
+        </svg>
+      );
+
+      const ListIcon = () => (
+        <svg className="icon" viewBox="0 0 24 24">
+          <path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z" />
+        </svg>
+      );
+
+      const UsersIcon = () => (
+        <svg className="icon" viewBox="0 0 24 24">
+          <path d="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-8 2a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm8 2a6 6 0 0 0-6 6h12a6 6 0 0 0-6-6zm-8 6a6 6 0 0 0-6 6h12a6 6 0 0 0-6-6z" />
+        </svg>
+      );
+
+      const MoonIcon = () => (
+        <svg className="icon" viewBox="0 0 24 24">
+          <path d="M12 3a9 9 0 0 0 9 9c0 4.97-4.03 9-9 9a9 9 0 0 1 0-18z" />
+        </svg>
+      );
+
+      const SunIcon = () => (
+        <svg className="icon" viewBox="0 0 24 24">
+          <path d="M12 2v2m0 16v2m10-10h-2M4 12H2m17.36-5.36l-1.42 1.42M6.64 17.36l-1.42 1.42M17.36 17.36l1.42 1.42M6.64 6.64l1.42-1.42M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z" />
+        </svg>
+      );
+
+      // Chakra UI components (упрощённые)
+      const Box = ({ children, ...props }) => (
+        <div {...props} className={`chakra-box ${props.className || ""}`}>
+          {children}
+        </div>
+      );
+
+      const Button = ({
+        children,
+        onClick,
+        isDisabled,
+        colorScheme = "blue",
+        ...props
+      }) => (
+        <button
+          onClick={onClick}
+          disabled={isDisabled}
+          className={`chakra-button bg-${colorScheme}-500 hover:bg-${colorScheme}-600 text-white font-medium py-2 px-4 rounded-md transition-colors button-hover ${
+            isDisabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          {...props}
+        >
+          {children}
+        </button>
+      );
+
+      const Input = ({ value, onChange, placeholder, ...props }) => (
+        <input
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          className="chakra-input w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+          {...props}
+        />
+      );
+
+      const Card = ({ children, title }) => (
+        <div className="chakra-card bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm card">
+          {title && (
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+              {title}
+            </h3>
+          )}
+          {children}
+        </div>
+      );
+
+      const Table = ({ headers, rows }) => (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                {headers.map((header, i) => (
+                  <th
+                    key={i}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                  >
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-600">
+              {rows.map((row, i) => (
+                <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  {row.map((cell, j) => (
+                    <td
+                      key={j}
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300"
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+
+      const Modal = ({ isOpen, onClose, children }) =>
+        isOpen ? (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 modal">
+              {children}
+              <Button
+                onClick={onClose}
+                colorScheme="red"
+                className="mt-4 w-full"
+              >
+                Закрыть
+              </Button>
+            </div>
+          </div>
+        ) : null;
+
+      function App() {
+        const [wallet, setWallet] = useState(null);
+        const [blocks, setBlocks] = useState([]);
+        const [transactions, setTransactions] = useState([]);
+        const [validators, setValidators] = useState([]);
+        const [balance, setBalance] = useState(null);
+        const [address, setAddress] = useState("");
+        const [toAddress, setToAddress] = useState("");
+        const [amount, setAmount] = useState("");
+        const [privateKey, setPrivateKey] = useState("");
+        const [message, setMessage] = useState("");
+        const [loading, setLoading] = useState(false);
+        const [showModal, setShowModal] = useState(false);
+        const [isDarkMode, setIsDarkMode] = useState(true);
+        const [activeTab, setActiveTab] = useState("dashboard");
+
+        const API_BASE = "http://localhost:8000";
+
+        const toggleTheme = () => {
+          setIsDarkMode(!isDarkMode);
+          document.documentElement.classList.toggle("dark");
+        };
+
+        const createWallet = async () => {
+          setLoading(true);
+          try {
+            const response = await fetch(`${API_BASE}/wallet`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            });
+            if (!response.ok) throw new Error("Ошибка создания кошелька");
+            const data = await response.json();
+            setWallet(data);
+            setAddress(data.address);
+            setPrivateKey(data.private_key);
+            setMessage("Кошелёк создан успешно!");
+          } catch (error) {
+            setMessage(`Ошибка: ${error.message}`);
+          }
+          setLoading(false);
+        };
+
+        const importWallet = () => {
+          if (!privateKey) {
+            setMessage("Введите приватный ключ!");
+            return;
+          }
+          try {
+            setWallet({
+              private_key: privateKey,
+              public_key: "N/A",
+              address: privateKey.substring(0, 40),
+            });
+            setAddress(privateKey.substring(0, 40));
+            setMessage("Кошелёк импортирован успешно (тестовый режим)!");
+          } catch (error) {
+            setMessage(`Ошибка импорта: ${error.message}`);
+          }
+        };
+
+        const fetchBlocks = async () => {
+          try {
+            const response = await fetch(`${API_BASE}/blocks`);
+            const data = await response.json();
+            setBlocks(data);
+          } catch (error) {
+            setMessage(`Ошибка загрузки блоков: ${error.message}`);
+          }
+        };
+
+        const fetchTransactions = async () => {
+          try {
+            const response = await fetch(`${API_BASE}/transactions`);
+            const data = await response.json();
+            setTransactions(data);
+          } catch (error) {
+            setMessage(`Ошибка загрузки транзакций: ${error.message}`);
+          }
+        };
+
+        const fetchValidators = async () => {
+          try {
+            const response = await fetch(`${API_BASE}/validators`);
+            const data = await response.json();
+            setValidators(
+              Object.entries(data).map(([address, stake]) => ({
+                address,
+                stake,
+              }))
+            );
+          } catch (error) {
+            setMessage(`Ошибка загрузки валидаторов: ${error.message}`);
+          }
+        };
+
+        const checkBalance = async () => {
+          if (!address) {
+            setMessage("Введите адрес!");
+            return;
+          }
+          try {
+            console.log("Checking balance for:", address);
+            const response = await fetch(`${API_BASE}/balance/${address}`);
+            const data = await response.json();
+            setBalance(data);
+            setMessage(`Баланс: ${data} монет`);
+          } catch (error) {
+            setMessage(`Ошибка проверки баланса: ${error.message}`);
+          }
+        };
+
+        const sendTransaction = async () => {
+          if (!wallet || !toAddress || !amount) {
+            setMessage("Заполните все поля и создайте/импортируйте кошелёк!");
+            return;
+          }
+          setLoading(true);
+          try {
+            const txData = `${wallet.address}->${toAddress}:${amount}`;
+            const testSignature = btoa(txData);
+            const tx = {
+              from: wallet.address,
+              to: toAddress,
+              amount: parseFloat(amount),
+              signature: testSignature,
+            };
+
+            const response = await fetch(`${API_BASE}/transaction`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(tx),
+            });
+            const result = await response.text();
+            setMessage(
+              result.includes("Ошибка")
+                ? `Ошибка: ${result}`
+                : "Транзакция отправлена успешно!"
+            );
+            if (!result.includes("Ошибка")) {
+              checkBalance();
+              fetchTransactions();
+              fetchBlocks();
+              fetchValidators();
+            }
+          } catch (error) {
+            setMessage(`Ошибка отправки: ${error.message}`);
+          }
+          setLoading(false);
+          setShowModal(false);
+        };
+
+        useEffect(() => {
+          fetchBlocks();
+          fetchTransactions();
+          fetchValidators();
+          document.documentElement.classList.add("dark");
+        }, []);
+
+        const renderDashboard = () => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card title="Баланс">
+              <Box className="flex items-center gap-2 mb-4">
+                <WalletIcon />
+                <Input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Введите адрес"
+                />
+              </Box>
+              <Button onClick={checkBalance} isDisabled={loading || !address}>
+                Проверить баланс
+              </Button>
+              {balance !== null && (
+                <p className="mt-4 text-2xl font-bold text-green-500 flex items-center">
+                  <CheckCircleIcon /> {balance} монет
+                </p>
+              )}
+            </Card>
+            <Card title="Отправить">
+              <Button onClick={() => setShowModal(true)} colorScheme="green">
+                <ExchangeIcon /> Создать транзакцию
+              </Button>
+            </Card>
+            <Card title="Статус">
+              <Button
+                onClick={() =>
+                  fetch(`${API_BASE}/status`)
+                    .then((res) => res.json())
+                    .then((data) =>
+                      setMessage(
+                        data ? "✅ Цепочка валидна" : "❌ Цепочка невалидна"
+                      )
+                    )
+                }
+              >
+                Проверить статус
+              </Button>
+            </Card>
+          </div>
+        );
+
+        const renderTransactions = () => (
+          <Card title="Транзакции">
+            <Table
+              headers={["From", "To", "Amount", "Signature"]}
+              rows={transactions.map((tx) => [
+                tx.from.substring(0, 10) + "...",
+                tx.to.substring(0, 10) + "...",
+                tx.amount.toString(),
+                tx.signature.substring(0, 10) + "...",
+              ])}
+            />
+          </Card>
+        );
+
+        const renderBlocks = () => (
+          <Card title="Блоки">
+            <Table
+              headers={["Index", "Hash", "Validator", "Tx Count"]}
+              rows={blocks.map((block) => [
+                block.index.toString(),
+                block.hash.substring(0, 10) + "...",
+                block.validator.substring(0, 10) + "...",
+                block.transactions.length.toString(),
+              ])}
+            />
+            <Button onClick={fetchBlocks} className="mt-4">
+              Обновить
+            </Button>
+          </Card>
+        );
+
+        const renderValidators = () => (
+          <Card title="Валидаторы">
+            <Table
+              headers={["Address", "Stake"]}
+              rows={validators.map((v) => [
+                v.address.substring(0, 10) + "...",
+                v.stake.toString(),
+              ])}
+            />
+            <Button onClick={fetchValidators} className="mt-4">
+              Обновить
+            </Button>
+          </Card>
+        );
+
+        return (
+          <Box
+            className={`min-h-screen ${
+              isDarkMode
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-900"
+            }`}
+          >
+            {/* Sidebar */}
+            <div className="fixed left-0 top-0 h-full w-64 bg-gray-800 dark:bg-gray-900 p-4 sidebar">
+              <Box className="flex items-center justify-between mb-8">
+                <h1 className="text-2xl font-bold">Crypto Wallet</h1>
+                <Button
+                  onClick={toggleTheme}
+                  colorScheme={isDarkMode ? "yellow" : "gray"}
+                  size="sm"
+                >
+                  {isDarkMode ? <SunIcon /> : <MoonIcon />}
+                </Button>
+              </Box>
+              <nav>
+                <Button
+                  onClick={() => setActiveTab("dashboard")}
+                  colorScheme={activeTab === "dashboard" ? "blue" : "gray"}
+                  className="w-full mb-2 flex items-center"
+                >
+                  <WalletIcon /> Dashboard
+                </Button>
+                <Button
+                  onClick={() => setActiveTab("transactions")}
+                  colorScheme={activeTab === "transactions" ? "blue" : "gray"}
+                  className="w-full mb-2 flex items-center"
+                >
+                  <ExchangeIcon /> Transactions
+                </Button>
+                <Button
+                  onClick={() => setActiveTab("blocks")}
+                  colorScheme={activeTab === "blocks" ? "blue" : "gray"}
+                  className="w-full mb-2 flex items-center"
+                >
+                  <ListIcon /> Blocks
+                </Button>
+                <Button
+                  onClick={() => setActiveTab("validators")}
+                  colorScheme={activeTab === "validators" ? "blue" : "gray"}
+                  className="w-full mb-2 flex items-center"
+                >
+                  <UsersIcon /> Validators
+                </Button>
+              </nav>
+            </div>
+
+            {/* Main content */}
+            <Box className="ml-64 p-8">
+              {activeTab === "dashboard" && renderDashboard()}
+              {activeTab === "transactions" && renderTransactions()}
+              {activeTab === "blocks" && renderBlocks()}
+              {activeTab === "validators" && renderValidators()}
+
+              {/* Wallet management */}
+              <Card title="Управление кошельком">
+                <Button onClick={createWallet} isDisabled={loading}>
+                  {loading ? "Создаётся..." : "Создать кошелёк"}
+                </Button>
+                <Input
+                  value={privateKey}
+                  onChange={(e) => setPrivateKey(e.target.value)}
+                  placeholder="Или введите приватный ключ для импорта"
+                  className="mt-4"
+                />
+                <Button
+                  onClick={importWallet}
+                  isDisabled={loading || !privateKey}
+                  className="mt-2"
+                >
+                  Импортировать кошелёк
+                </Button>
+                {wallet && (
+                  <Box className="mt-4 text-sm">
+                    <p>
+                      <strong>Адрес:</strong> {wallet.address}
+                    </p>
+                    <p>
+                      <strong>Приватный ключ:</strong>{" "}
+                      {wallet.private_key.substring(0, 20)}... (НЕ ДЕЛИСЬ!)
+                    </p>
+                  </Box>
+                )}
+              </Card>
+
+              {message && (
+                <Box
+                  className={`mt-4 p-4 rounded-md ${
+                    message.includes("Ошибка") ? "bg-red-500" : "bg-green-500"
+                  } text-white`}
+                >
+                  {message}
+                </Box>
+              )}
+            </Box>
+
+            {/* Modal for transaction */}
+            <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                Отправить транзакцию
+              </h3>
+              <Input
+                value={toAddress}
+                onChange={(e) => setToAddress(e.target.value)}
+                placeholder="Адрес получателя"
+                className="mb-4"
+              />
+              <Input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Сумма (например, 10.0)"
+                type="number"
+                step="0.1"
+                min="0.1"
+                className="mb-4"
+              />
+              <Button
+                onClick={sendTransaction}
+                isDisabled={loading || !toAddress || !amount}
+                colorScheme="green"
+              >
+                {loading ? "Отправляется..." : "Отправить"}
+              </Button>
+            </Modal>
+          </Box>
+        );
+      }
+
+      window.onload = () => {
+        const root = document.getElementById("root");
+        if (root) {
+          ReactDOM.render(<App />, root);
+        } else {
+          console.error("Root element not found");
+          document.body.innerHTML =
+            '<p class="text-red-500">Ошибка: контейнер root не найден</p>';
+        }
+      };
+    </script>
+  </body>
+</html>
